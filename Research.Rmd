@@ -1,0 +1,103 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+## Summary
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.  
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.  
+  
+Based on the data, I conclude that tornados pose the biggest threat to human life, they cause overwhelming majority of fatalities and injuries.  
+I also conclude that high winds, tornados, and floods are responsible for majority of property and crop damages.
+
+## Loading and preprocessing the data
+```{r dl, cache=TRUE}
+# download, unzip, and read the csv
+
+# http://stackoverflow.com/a/20003380
+setInternet2(TRUE)
+
+data_file <- 'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2'
+temp <- tempfile()
+download.file(data_file, temp)
+data <- read.csv(bzfile(temp))
+unlink(temp)
+```
+
+EVTYPE column is problematic, there are spelling variations, for example "THUNDERSTORM WIND" vs "THUNDERSTORM WINDS"  
+```{r}
+unique(data$EVTYPE)
+
+# alter the factor variable to char so we can add more values
+data$EVTYPE <- as.character(data$EVTYPE)
+
+# add a column indicating if this event is high wind related
+data$EVTYPE[grepl("THUNDERSTORM|TSTM|WIND|WND", data$EVTYPE, ignore.case=TRUE)] <- 'wind'
+
+# add a column indicating if this event is flooding related
+data$EVTYPE[grepl("flood|fld", data$EVTYPE, ignore.case=TRUE)] <- 'flood'
+
+# set it back as a factor
+data$EVTYPE <- as.factor(data$EVTYPE)
+```
+
+## Results  
+
+### First, explore most dangerous events, defined as combination of fatalities and injuries.
+```{r}
+# create a column representing total population damage (fatalities and injuries)
+data$popDamage <- data$FATALITIES + data$INJURIES
+
+# sum up the population damage for each event type
+totalPopDamage <- aggregate(data[, 'popDamage'], by=list(data$EVTYPE), FUN = sum)
+colnames(totalPopDamage) <- c('event', 'damage')
+
+# show top 5 most dangerous events
+sorted <- totalPopDamage[with(totalPopDamage, order(-damage)), ]
+top <- head(sorted, 5)
+top
+
+# visualization of scale difference between top 5 most dangerous events
+barplot(
+    top$damage, 
+    main = 'Fatalities and injuries for top 5 most dangerous events', 
+    xlab = 'Event', 
+    ylab = 'Fatalies and Injuries',
+    legend.text = c("Tornado", "High Wind", "Flood", "Heat", "Lightning"),
+    args.legend = list(x = "topright"),
+    col = c('blue', 'red', 'yellow', 'green', 'orange')
+  )
+```
+
+### Now lets explore the economic impact  
+```{r}
+# create a column representing total economic damage (propery damage and crop damage)
+data$econDamage <- data$PROPDMG + data$CROPDMG
+
+# sum up the population damage for each event type
+totalEconDamage <- aggregate(data[, 'econDamage'], by=list(data$EVTYPE), FUN = sum)
+colnames(totalEconDamage) <- c('event', 'damage')
+
+# show top 5 most dangerous events
+sorted <- totalEconDamage[with(totalEconDamage, order(-damage)), ]
+top <- head(sorted, 5)
+top
+
+# visualization of scale difference between top 5 most dangerous events
+barplot(
+  top$damage, 
+  main = 'Property and Crop damage for top 5 most dangerous events', 
+  xlab = 'Event', 
+  ylab = 'Damage',
+  legend.text = c("High Wind", "Tornado", "Flood", "Hail", "Lightning"),
+  args.legend = list(x = "topright"),
+  col = c('blue', 'red', 'yellow', 'green', 'orange')
+)
+```
+
+## Conclusion
+Tornados pose the biggest threat to human life, they cause overwhelming majority of fatalities and injuries.  
+High winds, tornados, and floods are responsible for majority of property and crop damages.
